@@ -6,6 +6,7 @@ import (
 	"gRPC-Course/hemangnakarani/greet/greetpb"
 	"io"
 	"log"
+	"time"
 
 	"google.golang.org/grpc"
 )
@@ -21,8 +22,10 @@ func main() {
 	defer conn.Close()
 
 	c := greetpb.NewGreetServiceClient(conn)
-	doUnary(c)
-	doServerStreaming(c)
+	//doUnary(c)
+	//doServerStreaming(c)
+	//doClientStreaming(c)
+	doBiDiStreaming(c)
 
 }
 
@@ -76,4 +79,144 @@ func doServerStreaming(c greetpb.GreetServiceClient) {
 		log.Printf("Response Streaming: %v", msg.GetResult())
 	}
 
+}
+
+func doClientStreaming(c greetpb.GreetServiceClient) {
+	fmt.Println("Client Streaming In RPC...")
+
+	requests := []*greetpb.LongGreetRequest{
+		&greetpb.LongGreetRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: "Hemang",
+				LastName:  "---",
+			},
+		},
+		&greetpb.LongGreetRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: "Het",
+				LastName:  "---",
+			},
+		},
+		&greetpb.LongGreetRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: "Harshad",
+				LastName:  "---",
+			},
+		},
+		&greetpb.LongGreetRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: "Himanshu",
+				LastName:  "---",
+			},
+		},
+		&greetpb.LongGreetRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: "Harsh",
+				LastName:  "---",
+			},
+		},
+	}
+
+	stream, err := c.LongGreet(context.Background())
+
+	if err != nil {
+		log.Fatalf("Error While Calling LongGreet: %v", err)
+	}
+
+	for _, req := range requests {
+
+		fmt.Printf("Sending Req: %v\n", req)
+		stream.Send(req)
+		time.Sleep(1000 * time.Millisecond)
+	}
+
+	res, err := stream.CloseAndRecv()
+	if err != nil {
+		log.Fatalf("Error While reciving resp from LongGreet: %v", err)
+	}
+
+	fmt.Printf("LongGreet Response: %v\n", res)
+}
+
+func doBiDiStreaming(c greetpb.GreetServiceClient) {
+
+	fmt.Printf("Starting BiDi Streaming In RPC...\n")
+
+	requests := []*greetpb.GreetEveryoneRequest{
+		&greetpb.GreetEveryoneRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: "Hemang",
+				LastName:  "---",
+			},
+		},
+		&greetpb.GreetEveryoneRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: "Het",
+				LastName:  "---",
+			},
+		},
+		&greetpb.GreetEveryoneRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: "Harshad",
+				LastName:  "---",
+			},
+		},
+		&greetpb.GreetEveryoneRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: "Himanshu",
+				LastName:  "---",
+			},
+		},
+		&greetpb.GreetEveryoneRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: "Harsh",
+				LastName:  "---",
+			},
+		},
+	}
+
+	stream, err := c.GreetEveryone(context.Background())
+
+	if err != nil {
+		log.Fatalf("Error while Reading stream\n")
+		return
+	}
+
+	waitc := make(chan struct{})
+
+	go func() {
+
+		for _, req := range requests {
+
+			fmt.Printf("Sending Message: %v\n", req)
+			stream.Send(req)
+			time.Sleep(1000 * time.Millisecond)
+		}
+
+		stream.CloseSend()
+
+	}()
+
+	go func() {
+
+		for {
+			res, err := stream.Recv()
+
+			if err == io.EOF {
+				break
+			}
+
+			if err != nil {
+				log.Fatalf("Error while Reading stream\n")
+				break
+			}
+
+			fmt.Printf("Recieved : %v\n", res.GetResult())
+		}
+
+		close(waitc)
+
+	}()
+
+	<-waitc
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"gRPC-Course/hemangnakarani/greet/greetpb"
+	"io"
 	"log"
 	"net"
 	"strconv"
@@ -46,6 +47,63 @@ func (*server) GreetManyTimes(req *greetpb.GreetManyTimesRequest, stream greetpb
 	}
 
 	return nil
+}
+
+func (*server) LongGreet(stream greetpb.GreetService_LongGreetServer) error {
+
+	fmt.Printf("LongGreet Func Invoked with client stream req\n")
+
+	result := "Hello "
+
+	for {
+
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return stream.SendAndClose(&greetpb.LongGreetResponse{
+				Result: result,
+			})
+		}
+
+		if err != nil {
+			log.Fatalf("Error While Reading Client Stream: %v", err)
+		}
+
+		firstname := req.GetGreeting().GetFirstName()
+		result += firstname + "! "
+	}
+
+}
+
+func (*server) GreetEveryone(stream greetpb.GreetService_GreetEveryoneServer) error {
+
+	fmt.Printf("Greeet Everyone BiDi Invoked\n")
+
+	for {
+
+		req, err := stream.Recv()
+
+		if err == io.EOF {
+			return nil
+		}
+
+		if err != nil {
+			log.Fatalf("Error While Reading Client Stream: %v", err)
+			return err
+		}
+
+		result := "Hello " + req.GetGreeting().GetFirstName() + " !!"
+
+		sendError := stream.Send(&greetpb.GreetEveryoneResponse{
+			Result: result,
+		})
+
+		if sendError != nil {
+			log.Fatalf("Error While Sending to stream Client: %v", err)
+			return sendError
+		}
+
+	}
+
 }
 
 func main() {
