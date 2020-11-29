@@ -1,6 +1,10 @@
 # gRPC-Basics
 Kicking off with golang and gRPC 🤩🥳
 
+# TechStack
+- Golang, gRPC driver and Protocol Buffers
+- MongoDb drivers for Golang
+- Evans CLI for testing Go server without writing client code. (It will need to use Reflection API in server code)
 
 # Instructions
 - Download golang and set GOPATH in environment
