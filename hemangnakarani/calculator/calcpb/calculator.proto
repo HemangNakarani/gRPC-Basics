@@ -35,6 +35,23 @@ message FindMaximumResponse{
     int64 maximum = 1;
 }
 
+message SquareRootRequest {
+    int32 number = 1;
+}
+
+message SquareRootResponse{
+    double number_root = 1;
+}
+
+message SquareWithDeadlineRequest {
+    int64 number = 1;
+}
+
+message SquareWithDeadlineResponse{
+    int64 number_square = 1;
+}
+
+
 service CalculatorService {
     
     rpc Sum(SumRequest) returns(SumResponse) {};
@@ -43,6 +60,9 @@ service CalculatorService {
 
     rpc ComputeAverage(stream ComputeAverageRequest) returns(ComputeAverageResponse) {};
 
-    rpc FindMaximum(stream FindMaximumRequest) returns(stream FindMaximumResponse) {};
+    rpc FindMaximum(stream FindMaximumRequest) returns(stream FindMaximumResponse) {}
 
+    rpc SquareRoot(SquareRootRequest) returns(SquareRootResponse) {};
+
+    rpc SquareWithDeadline(SquareWithDeadlineRequest) returns(SquareWithDeadlineResponse) {};
 }

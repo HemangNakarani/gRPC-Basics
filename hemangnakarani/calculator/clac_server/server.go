@@ -6,7 +6,14 @@ import (
 	"gRPC-Course/hemangnakarani/calculator/calcpb"
 	"io"
 	"log"
+	"math"
 	"net"
+	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 
 	"google.golang.org/grpc"
 )
@@ -116,6 +123,49 @@ func (*server) FindMaximum(stream calcpb.CalculatorService_FindMaximumServer) er
 
 }
 
+func (*server) SquareRoot(ctx context.Context, req *calcpb.SquareRootRequest) (*calcpb.SquareRootResponse, error) {
+
+	fmt.Printf("Request to get Square Root: %v\n", req)
+
+	number := req.GetNumber()
+
+	if number < 0 {
+		return nil, status.Errorf(
+			codes.InvalidArgument,
+			fmt.Sprintf("Received a Negative Number:%v", number),
+		)
+	}
+
+	return &calcpb.SquareRootResponse{
+		NumberRoot: math.Sqrt(float64(number)),
+	}, nil
+
+}
+
+func (*server) SquareWithDeadline(ctx context.Context, req *calcpb.SquareWithDeadlineRequest) (*calcpb.SquareWithDeadlineResponse, error) {
+
+	fmt.Println("SquareWithDeadline Hitted !!!!")
+
+	for i := 0; i < 3; i++ {
+
+		fmt.Printf("Error if: %v\n", ctx.Err())
+
+		if ctx.Err() == context.DeadlineExceeded {
+
+			fmt.Println("Client Cancelled Request!")
+			return nil, status.Errorf(codes.Canceled, "Client Cancelled Request")
+		}
+
+		time.Sleep(1 * time.Second)
+
+	}
+	number := req.GetNumber()
+
+	return &calcpb.SquareWithDeadlineResponse{
+		NumberSquare: number * number,
+	}, nil
+}
+
 func main() {
 
 	fmt.Println("Server init...")
@@ -125,9 +175,26 @@ func main() {
 		log.Fatalf("Failed To Listen : %v", err)
 	}
 
-	s := grpc.NewServer()
+	opts := []grpc.ServerOption{}
+	tls := false
+
+	if tls {
+		certFile := "D:/golib/src/gRPC-Course/hemangnakarani/ssl/server.crt"
+		keyFile := "D:/golib/src/gRPC-Course/hemangnakarani/ssl/server.pem"
+		creds, sslErr := credentials.NewServerTLSFromFile(certFile, keyFile)
+
+		if sslErr != nil {
+			log.Fatalf("failed loading certificates: %v", sslErr)
+			return
+		}
+		opts = append(opts, grpc.Creds(creds))
+	}
+
+	s := grpc.NewServer(opts...)
 
 	calcpb.RegisterCalculatorServiceServer(s, &server{})
+
+	reflection.Register(s)
 
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("Failed to Serve: %v", err)

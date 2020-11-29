@@ -9,12 +9,32 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
 
 func main() {
 	fmt.Println("Hello ! I'm Client.")
 
-	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
+	tls := true
+	opts := grpc.WithInsecure()
+
+	if tls {
+
+		certFile := "D:/golib/src/gRPC-Course/hemangnakarani/ssl/ca.crt"
+
+		creds, sslErr := credentials.NewClientTLSFromFile(certFile, "")
+
+		if sslErr != nil {
+			log.Fatalf("Error While Loading CA trust Certificate: %v\n", sslErr)
+		}
+
+		opts = grpc.WithTransportCredentials(creds)
+
+	}
+
+	conn, err := grpc.Dial("localhost:50051", opts)
 	if err != nil {
 		log.Fatalf("Could not connect : %v", err)
 	}
@@ -22,10 +42,13 @@ func main() {
 
 	c := calcpb.NewCalculatorServiceClient(conn)
 
-	//doUnary(c)
+	doUnary(c)
 	//doServerStreaming(c)
 	//doClientStreaming(c)
-	doBiDiStreaming(c)
+	//doBiDiStreaming(c)
+	//doErrorUnary(c)
+	//doUnaryWithDeadline(c, 5*time.Second)
+	//doUnaryWithDeadline(c, 1*time.Second)
 
 }
 
@@ -248,5 +271,63 @@ func doBiDiStreaming(c calcpb.CalculatorServiceClient) {
 	}()
 
 	<-waitc
+
+}
+
+func doErrorUnary(c calcpb.CalculatorServiceClient) {
+
+	fmt.Println("Strting To do Unary RPC...")
+
+	res, err := c.SquareRoot(context.Background(), &calcpb.SquareRootRequest{Number: -36})
+
+	if err != nil {
+		respError, ok := status.FromError(err)
+
+		if ok {
+			// actual error from gRPC - User Error
+			fmt.Println(respError.Message())
+			fmt.Println(respError.Code())
+		} else {
+			log.Fatalf("Error From Calling Function: %v", err)
+		}
+
+		return
+	}
+
+	fmt.Printf("Response from Server: %v\n", res.GetNumberRoot())
+}
+
+func doUnaryWithDeadline(c calcpb.CalculatorServiceClient, timeout time.Duration) {
+
+	fmt.Println("Strting To do Unary with Deadline RPC...")
+
+	req := &calcpb.SquareWithDeadlineRequest{
+		Number: 5,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	res, err := c.SquareWithDeadline(ctx, req)
+
+	if err != nil {
+
+		respError, ok := status.FromError(err)
+
+		if ok {
+			// actual error from gRPC - User Error
+			fmt.Println(respError.Message())
+			fmt.Println(respError.Code())
+
+			if respError.Code() == codes.DeadlineExceeded {
+				fmt.Println("We Cancled request")
+			}
+		} else {
+			log.Fatalf("Error From Calling Function: %v", err)
+		}
+		return
+	}
+
+	log.Printf("Response Unary: %v", res.GetNumberSquare())
 
 }
